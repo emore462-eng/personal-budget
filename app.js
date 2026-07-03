@@ -1,117 +1,109 @@
-// ── Datos iniciales ────────────────────────────────────────
-let nombres = ['salario', 'renta', 'comida', 'transporte'];
-let valores = [3500, -900, -850, -500];
+// ── Modelo ─────────────────────────────────────────────────
+const miPresupuesto = new Presupuesto();
 
-// ── Ingreso de movimientos por consola ─────────────────────
-let continuar = 'si';
-
-while (continuar === 'si') {
+// ── Captura de movimientos ─────────────────────────────────
+function registrarMovimiento() {
   const nombre = prompt('Nombre del movimiento:');
-  const tipo = prompt('Tipo (ingreso / gasto):');
-  const monto = parseFloat(prompt('Monto:'));
-
-  if (!nombre || (tipo !== 'ingreso' && tipo !== 'gasto') || isNaN(monto) || monto <= 0) {
-    alert('Datos inválidos. Intenta de nuevo.');
-  } else {
-    const valor = tipo === 'ingreso' ? monto : -monto;
-    nombres.push(nombre);
-    valores.push(valor);
-    console.log('Movimiento registrado.');
+  const tipo   = prompt('Tipo (ingreso / gasto):');
+  const valor  = parseFloat(prompt('Monto:'));
+ if (!nombre || (tipo !== 'ingreso' && tipo !== 'gasto') || isNaN(valor) || valor <= 0) {
+     alert('Datos inválidos. Intenta de nuevo.');
+    return;
   }
 
-  continuar = prompt('¿Deseas agregar otro movimiento? (si / no):');
+  // Crea instancia y la agrega (esValido() se verifica dentro de agregar)
+  miPresupuesto.agregar(new Movimiento(nombre, tipo, valor));
+  console.log('Movimiento registrado.');
+}
+
+let continuar = 'si';
+while (continuar === 'si') 
+  {
+  registrarMovimiento();
+  continuar = prompt('¿Registrar otro movimiento? (si / no):');
   if (continuar === null) continuar = 'no';
 }
 
-// ── Función mostrarResumen ─────────────────────────────────
-function mostrarResumen() {
-  let totalIngresos = 0;
-  let totalGastos = 0;
+// ── Reporte con functional-utils ──────────────────────────
+imprimirReporte(miPresupuesto.movimientos);
+console.log('\nPromedio de ingresos : S/ ' + promedioIngresos(miPresupuesto.movimientos).toFixed(2));
+console.log('Cantidad de gastos   : '     + contarGastos(miPresupuesto.movimientos));
 
-  console.log('\n===== DETALLE DE MOVIMIENTOS =====');
+// ── Validar presupuesto ────────────────────────────────────
+const limite = 2000;
+const ok = validarPresupuesto(miPresupuesto.movimientos, limite);
+console.log(`¿Gastos dentro del límite de S/ ${limite}? ${ok ? '✅ Sí' : '⚠️ No'}`);
 
-  for (let i = 0; i < nombres.length; i++) {
-    const tipo = valores[i] > 0 ? 'Ingreso' : 'Gasto';
-    console.log(`  ${tipo}: ${nombres[i]} → S/ ${valores[i].toFixed(2)}`);
+// ── Reporte OOP ────────────────────────────────────────────
+console.log('\n===== RESUMEN OOP =====');
+console.log(miPresupuesto.resumen());
+console.log(miPresupuesto.verificarLimites());
 
-    if (valores[i] > 0) {
-      totalIngresos += valores[i];
-    } else {
-      totalGastos += valores[i];
-    }
+// ── Reto: top 2 gastos más grandes ────────────────────────
+console.log('\n===== TOP 2 GASTOS =====');
+miPresupuesto.topGastos(2).forEach(m => console.log(' ', m.datosMovimiento()));
+
+// ── Reto: agrupar por tipo ─────────────────────────────────
+console.log('\n===== AGRUPADO POR TIPO =====');
+const agrupado = agruparPorTipo(miPresupuesto.movimientos);
+console.log('Ingresos:', agrupado.ingresos.map(m => m.nombre));
+console.log('Gastos  :', agrupado.gastos.map(m => m.nombre));
+
+// ── Logros: estadísticas y categorías ─────────────────────
+console.log('\n===== ESTADÍSTICAS =====');
+console.log('Mediana             : S/ ' + mediana(miPresupuesto.movimientos).toFixed(2));
+console.log('Desviación estándar : S/ ' + desviacionEstandar(miPresupuesto.movimientos).toFixed(2));
+
+console.log('\n===== CATEGORÍAS =====');
+const cats = categorizarPorMonto(miPresupuesto.movimientos);
+console.log('Bajo   (< S/100)  :', cats.bajo.map(m => m.nombre));
+console.log('Medio  (< S/1000) :', cats.medio.map(m => m.nombre));
+console.log('Alto   (≥ S/1000) :', cats.alto.map(m => m.nombre));
+
+// ── Prueba buscarPorNombre y eliminar ──────────────────────
+console.log('\n===== BÚSQUEDA Y ELIMINACIÓN =====');
+const encontrado = miPresupuesto.buscarPorNombre('sal');
+if (encontrado) console.log('Encontrado:', encontrado.datosMovimiento());
+
+miPresupuesto.eliminar('salario');
+console.log('Saldo tras eliminar salario: S/ ' + miPresupuesto.saldo().toFixed(2));
+// ── Clase Movimiento ───────────────────────────────────────
+class Movimiento {
+  constructor(nombre, tipo, valor) {
+    this.nombre = nombre;
+    this.tipo = tipo;
+    this.valor = valor;
+    this.fecha = new Date().toLocaleDateString();
   }
 
-  const balance = totalIngresos + totalGastos;
+  esIngreso() {
+    return this.tipo === 'ingreso';
+  }
 
-  console.log('\n===== DESGLOSE POR TIPO =====');
-  console.log(`  Total ingresos : S/ ${totalIngresos.toFixed(2)}`);
-  console.log(`  Total gastos   : S/ ${totalGastos.toFixed(2)}`);
-  console.log(`  Balance final  : S/ ${balance.toFixed(2)}`);
+  esGasto() {
+    return this.tipo === 'gasto';
+  }
 
-  if (balance >= 0) {
-    console.log('\n✅ Estás en positivo. ¡Buen trabajo!');
-  } else {
-    console.log('\n⚠️  Estás en negativo. Revisa tus gastos.');
+  datosMovimiento() {
+    const signo = this.esIngreso() ? '+' : '-';
+    return $; { this.nombre; } ($); { this.tipo; } $; { signo; } $$; { this.valor.toFixed(2); };
+  }
+
+  // Reto: días desde que se creó el movimiento hasta hoy
+  antiguedadEnDias() {
+    const partes = this.fecha.split('/');
+    const creado = new Date(partes[2], partes[1] - 1, partes[0]);
+    const hoy = new Date();
+    const diff = hoy - creado;
+    return Math.floor(diff / (1000 * 60 * 60 * 24));
+  }
+
+  // Logro 2: valida que el movimiento tenga datos correctos
+  esValido() {
+    return (
+      typeof this.nombre === 'string' && this.nombre.trim() !== '' &&
+      (this.tipo === 'ingreso' || this.tipo === 'gasto') &&
+      typeof this.valor === 'number' && this.valor > 0
+    );
   }
 }
-
-mostrarResumen();
-
-// ── Ejemplos con functional-utils (array de prueba) ────────
-const valoresPrueba = [3000, -45.50, 500, -30];
-
-// Convertir a dólares (4 soles = 1 dólar)
-const enDolares = valoresPrueba.map(valor => valor / 4);
-console.log('\n-- Conversión a dólares --');
-console.log(enDolares);
-console.log(valoresPrueba);
-
-// Solo ingresos y gastos con filter
-const ingresos = valoresPrueba.filter(valor => valor > 0);
-console.log('\n-- Ingresos --');
-console.log(ingresos);
-
-const gastos = valoresPrueba.filter(valor => valor < 0);
-console.log('\n-- Gastos --');
-console.log(gastos);
-
-// Gastos grandes (mayor a 40 en valor absoluto)
-const grandes = gastos.filter(gasto => gasto < -40);
-console.log('\n-- Gastos grandes (> $40) --');
-console.log(grandes);
-
-// Primer gasto encontrado con find
-const primerGasto = valoresPrueba.find(valor => valor < 0);
-console.log('\n-- Primer gasto --');
-console.log(primerGasto);
-
-// Si no encuentra nada → undefined
-const ingresoGigante = valoresPrueba.find(valor => valor > 100000);
-console.log('\n-- Ingreso gigante (no existe) --');
-console.log(ingresoGigante);
-
-// ── Uso de functional-utils.js ─────────────────────────────
-console.log('\n===== FUNCTIONAL UTILS =====');
-console.log('Ingresos:', obtenerIngresos(valoresPrueba));
-console.log('Gastos:', obtenerGastos(valoresPrueba));
-console.log('Montos sin signo:', montosAbsolutos(valoresPrueba));
-console.log('Primer gasto > $40:', buscarPrimerGastoMayor(valoresPrueba, 40));
-console.log('Cantidad de gastos:', contarGastos(valoresPrueba));
-
-// ── Saldo con reduce ───────────────────────────────────────
-// FIX: había dos declaraciones de "saldo" (let y const) — se queda solo la funcional
-const saldo = valores.reduce((acumulador, valor) => acumulador + valor, 0);
-console.log('\n-- Saldo total --');
-console.log('S/', saldo.toFixed(2));
-
-// ── forEach sobre los movimientos reales ──────────────────
-console.log('\n-- Todos los movimientos --');
-valores.forEach((valor, indice) => {
-  console.log(`Movimiento ${indice + 1}: ${nombres[indice]} → S/ ${valor.toFixed(2)}`);
-});
-
-// ── Reporte final con functional-utils ────────────────────
-console.log('\n===== REPORTE FINAL =====');
-imprimirReporte(nombres, valores);
-
-
