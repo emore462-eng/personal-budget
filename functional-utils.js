@@ -29,7 +29,7 @@ const promedioIngresos = movimientos => {
   return totalIngresos(movimientos) / ingresos.length;
 };
 
-// ── Reto C06: validar presupuesto ──────────────────────────
+// ── Reto: validar presupuesto ──────────────────────────
 const validarPresupuesto = (movimientos, limite) =>
   totalGastos(movimientos) <= limite;
 

@@ -1,109 +1,94 @@
-// ── Modelo ─────────────────────────────────────────────────
+// ── Referencias al DOM ─────────────────────────────────────
+const form  = document.getElementById('form-mov');
+const lista = document.getElementById('lista');
+
+// ── Instancia del presupuesto ──────────────────────────────
 const miPresupuesto = new Presupuesto();
 
-// ── Captura de movimientos ─────────────────────────────────
-function registrarMovimiento() {
-  const nombre = prompt('Nombre del movimiento:');
-  const tipo   = prompt('Tipo (ingreso / gasto):');
-  const valor  = parseFloat(prompt('Monto:'));
- if (!nombre || (tipo !== 'ingreso' && tipo !== 'gasto') || isNaN(valor) || valor <= 0) {
-     alert('Datos inválidos. Intenta de nuevo.');
+// ── Movimientos de ejemplo ─────────────────────────────────
+miPresupuesto.agregar(new Movimiento('Salario',   'ingreso', 3000));
+miPresupuesto.agregar(new Movimiento('Cena',      'gasto',   45.50));
+miPresupuesto.agregar(new Movimiento('Freelance', 'ingreso', 500));
+
+// ── Genera el HTML de un <li> ──────────────────────────────
+function liHTML(m) {
+  const ingreso = m.esIngreso();
+
+  let caja, texto, signo;
+
+  if (ingreso) {
+    caja  = 'bg-green-50 border-green-500 dark:bg-green-900 dark:border-green-600';
+    texto = 'text-green-700 dark:text-green-400';
+    signo = '+';
+  } else {
+    caja  = 'bg-red-50 border-red-500 dark:bg-red-900 dark:border-red-600';
+    texto = 'text-red-700 dark:text-red-400';
+    signo = '-';
+  }
+
+  // Logro 3 — badge de categoría
+  const badge = `<span class="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded-full ml-2">${m.tipo}</span>`;
+
+  // antiguedadEnDias() — muestra días desde que se registró
+  const dias = m.antiguedadEnDias();
+  const antiguedad = `<span class="text-xs text-gray-400 dark:text-gray-500 ml-2">${dias === 0 ? 'hoy' : `hace ${dias} día${dias !== 1 ? 's' : ''}}`}</span>`;
+
+  return `
+    <li class="flex items-center justify-between p-3 border-l-4 rounded ${caja}">
+      <span>
+        <span class="font-medium text-gray-800 dark:text-white">${m.nombre}</span>
+        ${badge}
+        ${antiguedad}
+      </span>
+      <span class="font-semibold ${texto}">${signo}$${m.valor.toFixed(2)}</span>
+    </li>`;
+}
+
+// ── Render: actualiza toda la UI ───────────────────────────
+function render() {
+  // Lista de movimientos
+  lista.innerHTML = miPresupuesto.movimientos.map(liHTML).join('');
+
+  // Saldo
+  document.getElementById('saldo').textContent =
+    '$' + miPresupuesto.saldo().toFixed(2);
+
+  // Reto — cajitas ingresos y gastos
+  document.getElementById('total-ingresos').textContent =
+    '$' + miPresupuesto.totalIngresos().toFixed(2);
+  document.getElementById('total-gastos').textContent =
+    '$' + miPresupuesto.totalGastos().toFixed(2);
+
+  // verificarLimites() — alerta visual sobre el presupuesto
+  const mensaje   = miPresupuesto.verificarLimites();
+  const esAlerta  = mensaje.startsWith('⚠️');
+  const colorCaja = esAlerta
+    ? 'bg-red-50 border-red-400 text-red-700 dark:bg-red-900 dark:border-red-600 dark:text-red-300'
+    : 'bg-green-50 border-green-400 text-green-700 dark:bg-green-900 dark:border-green-600 dark:text-green-300';
+
+  document.getElementById('alerta-limites').innerHTML = `
+    <div class="p-4 border-l-4 rounded-lg text-sm font-medium ${colorCaja}">
+      ${mensaje}
+    </div>`;
+}
+
+// ── Escucha el formulario ──────────────────────────────────
+form.addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  const nombre = document.getElementById('nombre').value.trim();
+  const tipo   = document.getElementById('tipo').value;
+  const valor  = parseFloat(document.getElementById('monto').value);
+
+  if (!nombre || isNaN(valor) || valor <= 0) {
+    alert('Datos inválidos. Revisa el nombre y el monto.');
     return;
   }
 
-  // Crea instancia y la agrega (esValido() se verifica dentro de agregar)
   miPresupuesto.agregar(new Movimiento(nombre, tipo, valor));
-  console.log('Movimiento registrado.');
-}
+  render();
+  e.target.reset();
+});
 
-let continuar = 'si';
-while (continuar === 'si') 
-  {
-  registrarMovimiento();
-  continuar = prompt('¿Registrar otro movimiento? (si / no):');
-  if (continuar === null) continuar = 'no';
-}
-
-// ── Reporte con functional-utils ──────────────────────────
-imprimirReporte(miPresupuesto.movimientos);
-console.log('\nPromedio de ingresos : S/ ' + promedioIngresos(miPresupuesto.movimientos).toFixed(2));
-console.log('Cantidad de gastos   : '     + contarGastos(miPresupuesto.movimientos));
-
-// ── Validar presupuesto ────────────────────────────────────
-const limite = 2000;
-const ok = validarPresupuesto(miPresupuesto.movimientos, limite);
-console.log(`¿Gastos dentro del límite de S/ ${limite}? ${ok ? '✅ Sí' : '⚠️ No'}`);
-
-// ── Reporte OOP ────────────────────────────────────────────
-console.log('\n===== RESUMEN OOP =====');
-console.log(miPresupuesto.resumen());
-console.log(miPresupuesto.verificarLimites());
-
-// ── Reto: top 2 gastos más grandes ────────────────────────
-console.log('\n===== TOP 2 GASTOS =====');
-miPresupuesto.topGastos(2).forEach(m => console.log(' ', m.datosMovimiento()));
-
-// ── Reto: agrupar por tipo ─────────────────────────────────
-console.log('\n===== AGRUPADO POR TIPO =====');
-const agrupado = agruparPorTipo(miPresupuesto.movimientos);
-console.log('Ingresos:', agrupado.ingresos.map(m => m.nombre));
-console.log('Gastos  :', agrupado.gastos.map(m => m.nombre));
-
-// ── Logros: estadísticas y categorías ─────────────────────
-console.log('\n===== ESTADÍSTICAS =====');
-console.log('Mediana             : S/ ' + mediana(miPresupuesto.movimientos).toFixed(2));
-console.log('Desviación estándar : S/ ' + desviacionEstandar(miPresupuesto.movimientos).toFixed(2));
-
-console.log('\n===== CATEGORÍAS =====');
-const cats = categorizarPorMonto(miPresupuesto.movimientos);
-console.log('Bajo   (< S/100)  :', cats.bajo.map(m => m.nombre));
-console.log('Medio  (< S/1000) :', cats.medio.map(m => m.nombre));
-console.log('Alto   (≥ S/1000) :', cats.alto.map(m => m.nombre));
-
-// ── Prueba buscarPorNombre y eliminar ──────────────────────
-console.log('\n===== BÚSQUEDA Y ELIMINACIÓN =====');
-const encontrado = miPresupuesto.buscarPorNombre('sal');
-if (encontrado) console.log('Encontrado:', encontrado.datosMovimiento());
-
-miPresupuesto.eliminar('salario');
-console.log('Saldo tras eliminar salario: S/ ' + miPresupuesto.saldo().toFixed(2));
-// ── Clase Movimiento ───────────────────────────────────────
-class Movimiento {
-  constructor(nombre, tipo, valor) {
-    this.nombre = nombre;
-    this.tipo = tipo;
-    this.valor = valor;
-    this.fecha = new Date().toLocaleDateString();
-  }
-
-  esIngreso() {
-    return this.tipo === 'ingreso';
-  }
-
-  esGasto() {
-    return this.tipo === 'gasto';
-  }
-
-  datosMovimiento() {
-    const signo = this.esIngreso() ? '+' : '-';
-    return $; { this.nombre; } ($); { this.tipo; } $; { signo; } $$; { this.valor.toFixed(2); };
-  }
-
-  // Reto: días desde que se creó el movimiento hasta hoy
-  antiguedadEnDias() {
-    const partes = this.fecha.split('/');
-    const creado = new Date(partes[2], partes[1] - 1, partes[0]);
-    const hoy = new Date();
-    const diff = hoy - creado;
-    return Math.floor(diff / (1000 * 60 * 60 * 24));
-  }
-
-  // Logro 2: valida que el movimiento tenga datos correctos
-  esValido() {
-    return (
-      typeof this.nombre === 'string' && this.nombre.trim() !== '' &&
-      (this.tipo === 'ingreso' || this.tipo === 'gasto') &&
-      typeof this.valor === 'number' && this.valor > 0
-    );
-  }
-}
+// ── Pinta al cargar ────────────────────────────────────────
+render();
