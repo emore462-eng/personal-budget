@@ -89,3 +89,4 @@ const imprimirReporte = movimientos => {
   console.log('  Total gastos      : S/ ' + reporte[2].toFixed(2));
   console.log('  Saldo             : S/ ' + reporte[3].toFixed(2));
 };
+};
